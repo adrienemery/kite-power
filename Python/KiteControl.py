@@ -13,9 +13,11 @@ class KiteControl(object):
         try:
             self.ser = serial.Serial(self.port, self.baud)
             print "Successfully opened Serial"
+            print
         except serial.SerialException:
             self.ser = None
             print "Could not open Serial!"
+            print
 
         # Initialize Joystick object
         joystick.init()
@@ -27,7 +29,7 @@ class KiteControl(object):
         self.throttle_axis = 1  # change this to the correct axis for the joystick
 
         self.last_turn_val = 0
-        self.last_sheet_val = 0
+        self.last_sheet_val = 47
 
     def write_to_serial(self, msg):
         if self.ser:
@@ -36,24 +38,25 @@ class KiteControl(object):
             self.ser.write(msg)  # Terminating char '/' must always be appended to the end of the msg
             return True
         else:
+            if not '/' in msg:
+                msg += '/'
             print 'Serial not available: ' + msg
             return False
 
     def turn(self, val):
         val *= 30
-        val = str(int(val))  # convert to string
-
+        val = int(val)
         if not val == self.last_turn_val:
             self.last_turn_val = val
-            return self.write_to_serial('t' + val)
+            return self.write_to_serial('t' + str(val))
 
     def sheet(self, val):
         val = (val + 1)/2 * 96  # maps the values (-1,1) to (0,96) This might need to be reversed?
-        val = str(int(val))
+        val = int(val)
 
         if not val == self.last_sheet_val:
-            self.last_sheet_val = val
-            return self.write_to_serial('p' + val)
+            self.last_sheet_val = int(val)
+            return self.write_to_serial('p' + str(val))
 
     def run(self):
 
