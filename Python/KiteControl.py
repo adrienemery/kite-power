@@ -2,6 +2,8 @@ from pygame import joystick
 import pygame
 import time
 import serial
+from PID import PID
+from KiteTracker import KiteTracker
 
 
 class KiteControl(object):
@@ -30,6 +32,12 @@ class KiteControl(object):
 
         self.last_turn_val = 0
         self.last_sheet_val = 47
+
+        self.auto_enabled = False
+        self.kite_tracker = KiteTracker()
+
+        self.pid = PID(3.0, 0.4, 1.2)
+        self.pid.setSetPoint(0.0)  # Set-point corresponds to heading vector which has angle = 0.0 in its frame.
 
     def write_to_serial(self, msg):
         if self.ser:
@@ -64,11 +72,31 @@ class KiteControl(object):
             pygame.event.get()
             pygame.event.pump()
 
-            self.turn(self.joy.get_axis(self.x_axis))
-            self.sheet(self.joy.get_axis(self.throttle_axis))
+            if not self.auto_enabled:
+                self.turn(self.joy.get_axis(self.x_axis))
+                self.sheet(self.joy.get_axis(self.throttle_axis))
+                self.kite_tracker.update()
+
+            else:
+                self.kite_tracker.update()  # must be called once per loop
+                error = self.update_error()
+                output = self.pid.update(error)
+                self.turn(output)
 
             time.sleep(0.05)
 
+    def update_error(self):
+        """
+        Input: tuple of x,y coordinates of the kite.
+        Computes angle error between current heading and desired heading.
+        Returns: error angle in degrees.
+        """
+
+        pos = self.kite_tracker.get_pos()
+
+        # TODO get heading from kite position data and compute error
+
+        return 0
 
 control = KiteControl()
 control.run()
