@@ -2,6 +2,7 @@ from pygame import joystick
 import pygame
 import time
 import serial
+import numpy as np
 from PID import PID
 from KiteTracker import KiteTracker
 
@@ -9,8 +10,8 @@ from KiteTracker import KiteTracker
 class KiteControl(object):
 
     def __init__(self):
-        self.port = 'COM4'
-        self.baud = 9600
+        self.port = 'COM22'
+        self.baud = 115200
 
         try:
             self.ser = serial.Serial(self.port, self.baud)
@@ -24,8 +25,13 @@ class KiteControl(object):
         # Initialize Joystick object
         joystick.init()
         pygame.display.init()
-        self.joy = joystick.Joystick(0)
-        self.joy.init()
+
+        if joystick.get_count():
+            self.joy = joystick.Joystick(0)
+            self.joy.init()
+
+        else:
+            self.joy = None
 
         self.x_axis = 0  # this is usually 0
         self.throttle_axis = 1  # change this to the correct axis for the joystick
@@ -33,8 +39,9 @@ class KiteControl(object):
         self.last_turn_val = 0
         self.last_sheet_val = 47
 
-        self.auto_enabled = False
+        self.auto_enabled = True
         self.kite_tracker = KiteTracker()
+        self.pos_list = []
 
         self.pid = PID(3.0, 0.4, 1.2)
         self.pid.setSetPoint(0.0)  # Set-point corresponds to heading vector which has angle = 0.0 in its frame.
@@ -73,15 +80,17 @@ class KiteControl(object):
             pygame.event.pump()
 
             if not self.auto_enabled:
-                self.turn(self.joy.get_axis(self.x_axis))
-                self.sheet(self.joy.get_axis(self.throttle_axis))
+                if self.joy:
+                    self.turn(self.joy.get_axis(self.x_axis))
+                    self.sheet(self.joy.get_axis(self.throttle_axis))
+
                 self.kite_tracker.update()
 
             else:
                 self.kite_tracker.update()  # must be called once per loop
                 error = self.update_error()
-                output = self.pid.update(error)
-                self.turn(output)
+                #output = self.pid.update(error)
+                #self.turn(output)
 
             time.sleep(0.05)
 
@@ -92,11 +101,61 @@ class KiteControl(object):
         Returns: error angle in degrees.
         """
 
-        pos = self.kite_tracker.get_pos()
+        # get updated position from kite tracker and store in array
+        self.pos_list.append(self.kite_tracker.get_pos())
 
-        # TODO get heading from kite position data and compute error
+        if len(self.pos_list) > 3:
+            last_pos = self.pos_list[-2]
+            pos = self.pos_list[-1]
+            target = [200, 200]
 
-        return 0
+            if pos and last_pos:
+
+                # only keep the last 5 positions
+                if len(self.pos_list) > 5:
+                    self.pos_list = self.pos_list[1:]
+
+                # compute the heading based on the last average vector over the last 2 positions
+
+                vecA = np.array([pos[0]-last_pos[0], pos[1] - last_pos[1]])
+                vecA = vecA/np.linalg.norm(vecA)
+                vecB = np.array([target[0] - last_pos[0], target[1] - last_pos[1]])
+                vecB = vecB/np.linalg.norm(vecB)
+
+                ctheta = vecA.dot(vecB)/(np.linalg.norm(vecA) * np.linalg.norm(vecB)) # = cos(theta)
+                if ctheta > 1:
+                    ctheta = 1.0
+
+                theta = np.rad2deg(np.arccos(ctheta))  # original unsigned angle
+
+                angle = 1
+                rot = np.mat([[np.cos(np.deg2rad(angle)), -np.sin(np.deg2rad(angle))],
+                              [np.sin(np.deg2rad(angle)), np.cos(np.deg2rad(angle))]])
+
+                # rotate vecA by 1 degree ccw
+                rot_vecA = rot * np.mat(vecA).T
+                rot_vecA = rot_vecA.T
+
+                # recalcluate angle
+                ctheta = rot_vecA.dot(vecB)/(np.linalg.norm(rot_vecA) * np.linalg.norm(vecB))
+                if ctheta > 1:
+                    ctheta = 1.0
+
+                theta_new = np.rad2deg(np.arccos(ctheta))  # original unsigned angle
+
+                if theta_new < theta:
+                    theta = -theta
+
+                print theta
+                return theta
+            else:
+                print 0
+                return 0
+
+        else:
+            print 0
+            return 0
+
 
 control = KiteControl()
 control.run()

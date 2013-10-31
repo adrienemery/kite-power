@@ -7,6 +7,10 @@ class KiteTracker(object):
 
         if path == 'cam':
             self.cam = SimpleCV.Camera()
+
+        elif path == 'none':
+            pass
+
         else:
             self.vid = SimpleCV.VirtualCamera(path, 'video')
 
@@ -38,6 +42,7 @@ class KiteTracker(object):
         3 -
         """
         self.filter = number
+
 
     def update(self):
         """
@@ -76,6 +81,9 @@ class KiteTracker(object):
 
         #dist_img.show()
         #filtered_img.show()
+
+        if self.pos:
+            img.dl().line(self.pos, (200, 200))
         if not self.hide_window:
             img.show()
 
