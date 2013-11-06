@@ -105,11 +105,11 @@ class KiteControl(object):
         self.pos_list.append(self.kite_tracker.get_pos())
 
         if len(self.pos_list) > 3:
-            last_pos = self.pos_list[-2]
+            last_pos = self.pos_list[-3]
             pos = self.pos_list[-1]
-            target = [200, 200]
+            target = self.kite_tracker.get_current_target()
 
-            if pos and last_pos:
+            if pos and last_pos and last_pos != pos:
 
                 # only keep the last 5 positions
                 if len(self.pos_list) > 5:
@@ -156,7 +156,8 @@ class KiteControl(object):
             print 0
             return 0
 
+if __name__ == '__main__':
 
-control = KiteControl()
-control.run()
+    control = KiteControl()
+    control.run()
 

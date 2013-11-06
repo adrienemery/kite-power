@@ -1,4 +1,5 @@
 import SimpleCV
+import numpy as np
 
 
 class KiteTracker(object):
@@ -6,7 +7,7 @@ class KiteTracker(object):
     def __init__(self, path='static_kite.avi', hide_window=False, show_tail=False):
 
         if path == 'cam':
-            self.cam = SimpleCV.Camera()
+            self.cam = SimpleCV.Camera(threaded=True)
 
         elif path == 'none':
             pass
@@ -22,6 +23,9 @@ class KiteTracker(object):
         self.hide_window = hide_window
         self.pos = None
         self.path = path
+        self.targets = {1: (150, 200), 2: (600, 400), 3: (600, 200), 4: (150, 400)}
+        self.current_target = 1
+        self.target_radius = 100
 
         # create log file
         with open('log.txt', 'w') as f:
@@ -43,6 +47,8 @@ class KiteTracker(object):
         """
         self.filter = number
 
+    def get_current_target(self):
+        return self.targets[self.current_target]
 
     def update(self):
         """
@@ -83,8 +89,43 @@ class KiteTracker(object):
         #filtered_img.show()
 
         if self.pos:
-            img.dl().line(self.pos, (200, 200))
+            img.dl().line(self.pos, self.targets[self.current_target])
+
+            v1 = np.mat(self.pos)
+            v2 = np.mat(self.targets[self.current_target])
+            dist = np.linalg.norm(v1 - v2)
+
+            if dist < self.target_radius:
+                self.current_target += 1
+                if self.current_target > 4:
+                    self.current_target = 1
+
+            if len(self.tail) > 2:
+                last_pos = self.tail[-2]
+                pos = self.tail[-1]
+
+                if not last_pos == pos:
+                    # drawing heading based on last two points
+                    v1 = np.mat(last_pos)
+                    v2 = np.mat((pos))
+                    v3 = v2 - v1
+                    v3 = 50*v3/np.linalg.norm(v3) + v2
+
+                    p1 = v1[0,0], v1[0,1]
+                    p2 = v2[0,0], v2[0,1]
+                    p3 = v3[0,0], v3[0,1]
+
+                    img.dl().line(p2, p3, SimpleCV.Color.RED)
+
         if not self.hide_window:
+            for key in self.targets:
+                        img.dl().circle(self.targets[key], self.target_radius, SimpleCV.Color.BLUE)
             img.show()
 
     # TODO add color filter functions to get called based on user selection
+
+if __name__ == '__main__':
+    tracker = KiteTracker()
+
+    while True:
+        tracker.update()
