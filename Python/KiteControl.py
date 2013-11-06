@@ -5,13 +5,14 @@ import serial
 import numpy as np
 from PID import PID
 from KiteTracker import KiteTracker
+import datetime
 
 
 class KiteControl(object):
 
     def __init__(self):
-        self.port = 'COM22'
-        self.baud = 115200
+        self.port = 'COM22'  # change this to the com port for your Arduino
+        self.baud = 115200   # baudrate don't change
 
         try:
             self.ser = serial.Serial(self.port, self.baud)
@@ -39,18 +40,27 @@ class KiteControl(object):
         self.last_turn_val = 0
         self.last_sheet_val = 47
 
-        self.auto_enabled = True
-        self.kite_tracker = KiteTracker()
+        self.auto_enabled = False  # change to true to use PID
+        self.kite_tracker = KiteTracker(path='cam')
         self.pos_list = []
 
         self.pid = PID(3.0, 0.4, 1.2)
         self.pid.setSetPoint(0.0)  # Set-point corresponds to heading vector which has angle = 0.0 in its frame.
+
+        # create log file
+        self.logfile = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d_%H_%M_%S') + '_log.txt'
+        open(self.logfile, 'w').close()
 
     def write_to_serial(self, msg):
         if self.ser:
             if not '/' in msg:
                 msg += '/'
             self.ser.write(msg)  # Terminating char '/' must always be appended to the end of the msg
+
+            with open('log.txt', 'a') as f:
+                date = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
+                f.write(date + ',' + msg + '\n')
+
             return True
         else:
             if not '/' in msg:
