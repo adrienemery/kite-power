@@ -49,7 +49,8 @@ class KiteControl(object):
 
         # create log file
         self.logfile = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d_%H_%M_%S') + '_log.txt'
-        open(self.logfile, 'w').close()
+        with open(logfile, 'w') as f:
+            f.write('time,command,turn_val,power_val\n')
 
     def write_to_serial(self, msg):
         if self.ser:
@@ -59,7 +60,12 @@ class KiteControl(object):
 
             with open('log.txt', 'a') as f:
                 date = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S.%f')
-                f.write(date + ',' + msg + '\n')
+                f.write(date + ',' + msg + ',')
+                if 'p' in msg:
+                    f.write(',' + msg.strip('t/p'))
+                elif 't' in msg:
+                    f.write(msg.strip('t/p') + ',')
+                f.write('\n')
 
             return True
         else:
