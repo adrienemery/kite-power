@@ -62,10 +62,17 @@ class KiteTracker(object):
             img = self.vid.getImage()
             img = img.resize(720, 480)
 
-        dist_img = img.colorDistance(color=SimpleCV.Color.BLACK)
-        dist_img = img - dist_img
-        #dist_img = dist_img.colorDistance(color=SimpleCV.Color.RED)
-        #dist_img = dist_img.threshold(value).erode(3).invert()
+        if self.filter == 0:
+            dist_img = img.colorDistance(color=SimpleCV.Color.BLACK)
+            dist_img = img - dist_img
+            #dist_img = dist_img.colorDistance(color=SimpleCV.Color.RED)
+            #dist_img = dist_img.threshold(value).erode(3).invert()
+
+        elif self.filter == 1:
+            dist_img = img.colorDistance(color=SimpleCV.Color.WHITE)
+            #dist_img = img - dist_img
+            filtered_img = dist_img.threshold(170).dilate()
+            dist_img = filtered_img
 
         blobs = dist_img.findBlobs(minsize=200)
         if blobs:
@@ -84,9 +91,6 @@ class KiteTracker(object):
         if self.tail and self.show_tail:
             for point in self.tail[:-2]:
                 img.dl().circle(point, 6, SimpleCV.Color.RED)
-
-        #dist_img.show()
-        #filtered_img.show()
 
         if self.pos:
             img.dl().line(self.pos, self.targets[self.current_target])
@@ -122,10 +126,11 @@ class KiteTracker(object):
                         img.dl().circle(self.targets[key], self.target_radius, SimpleCV.Color.BLUE)
             img.show()
 
-    # TODO add color filter functions to get called based on user selection
 
 if __name__ == '__main__':
-    tracker = KiteTracker()
+    tracker = KiteTracker(path='foil_kite1_trim.avi')
+    #tracker = KiteTracker(path='foil_kite1_tri')
+    tracker.set_filter(1)
 
     while True:
         tracker.update()
